@@ -21,8 +21,10 @@ class acp_postlove_module
 {
 	function main($id, $mode)
 	{
-		global $db, $config, $template, $request, $user, $cache, $phpbb_root_path;
+		global $db, $config, $template, $request, $table_prefix, $phpbb_root_path;
+		global $language, $phpbb_container;
 
+		$language = $phpbb_container->get('language');
 		//Define extension path (we will need it)
 		$ext_path =  $phpbb_root_path . 'ext/anavaro/postlove/';
 
@@ -36,116 +38,76 @@ class acp_postlove_module
 			{
 				$config->set($id, $var);
 			}
-			trigger_error($user->lang('CONFIRM_MESSAGE', $this->u_action));
+			trigger_error($language->lang('CONFIRM_MESSAGE', $this->u_action));
 		}
-
-		if ($request->is_set_post('apply'))
+		if ($request->variable('clean', false))
 		{
-			if (is_writable($ext_path . 'styles'))
+			if (confirm_box(true))
 			{
-				$theme_to_apply = $request->variable('poslove_choose', '');
-				// Delete old files
-				$dirs = array_diff(scandir($ext_path . 'styles/'), array('..', '.'));
-				foreach (glob("{$ext_path}styles/*") as $var)
+				// Now let's clean all post loves that have no posts
+				$sql_ary = array(
+					'SELECT'	=> 'pl.post_id as post_id',
+					'FROM'		=> array($table_prefix . 'posts_likes' => 'pl'),
+					'LEFT_JOIN'	=> array(
+						array(
+							'FROM'	=> array($table_prefix . 'posts' => 'p'),
+							'ON'	=> 'pl.post_id = p.post_id'
+						)
+					),
+					'WHERE'	=> 'p.post_id IS NULL'
+				);
+				$sql = $db->sql_build_query('SELECT', $sql_ary);
+				$result = $db->sql_query($sql);
+				$delete_post_likes = array();
+				while ($row = $db->sql_fetchrow($result))
 				{
-					if (is_dir($var))
-					{
-						$this->recursiveRemoveDirectory($var);
-					}
-					else
-					{
-						unlink($var);
-					}
+					$delete_post_likes[] = $row['post_id'];
 				}
-				$this->recurse_copy($ext_path . 'themes/' . $theme_to_apply, $ext_path . 'styles');
-				$config->set('postlove_installed_theme', $theme_to_apply);
-				$cache->purge();
-
-				trigger_error($user->lang('THEME_CHANGED'));
+				$db->sql_freeresult($result);
+				if (!empty($delete_post_likes))
+				{
+					$sql = 'DELETE FROM ' . $table_prefix . 'posts_likes WHERE ' . $db->sql_in_set('post_id', $delete_post_likes);
+					$db->sql_query($sql);
+					$deleted_post_likes = $db->sql_affectedrows();
+					var_dump($deleted_post_likes . ' post likes deleted');
+				}
+				$sql_ary = array(
+					'SELECT'	=> 'pl.user_id as user_id',
+					'FROM'		=> array($table_prefix . 'posts_likes' => 'pl'),
+					'LEFT_JOIN'	=> array(
+						array(
+							'FROM'	=> array($table_prefix . 'users' => 'u'),
+							'ON'	=> 'pl.user_id = u.user_id'
+						)
+					),
+					'WHERE'	=> 'u.user_id IS NULL'
+				);
+				$sql = $db->sql_build_query('SELECT', $sql_ary);
+				$result = $db->sql_query($sql);
+				$delete_user_likes = array();
+				while ($row = $db->sql_fetchrow($result))
+				{
+					$delete_user_likes[] = $row['user_id'];
+				}
+				$db->sql_freeresult($result);
+				if (!empty($delete_user_likes))
+				{
+					$sql = 'DELETE FROM ' . $table_prefix . 'posts_likes WHERE ' . $db->sql_in_set('user_id', $delete_user_likes);
+					$db->sql_query($sql);
+					$deleted_user_likes = $db->sql_affectedrows();
+					var_dump($deleted_user_likes . ' user likes deleted');
+				}
+			}
+			else
+			{
+				confirm_box(false, $language->lang('CONFIRM_OPERATION'), build_hidden_fields(array('clean' => true)));
 			}
 		}
-
-		// Let's populate installed current theme info
-		$string = file_get_contents($ext_path . 'themes/' . $config['postlove_installed_theme'] . '/' . $config['postlove_installed_theme'] . '.json');
-		$theme_json = json_decode($string, true);
 
 		$template->assign_vars(array(
 			'POST_LIKES'	=> ($config['postlove_show_likes'] == 1 ? true : false),
 			'POST_LIKED'	=> ($config['postlove_show_liked'] == 1 ? true : false),
 			'AUTHOR_LIKE'	=> ($config['postlove_author_like'] == 1 ? true : false),
-			'INSTALLED_THEME_NAME'	=> $theme_json['name'],
-			'INSTALLED_THEME_AUTHOR'	=> $theme_json['author'],
-			'INSTALLED_THEME_DESCRIPTION'	=> $theme_json['description'],
-			'INSTALLED_THEME_SUPPORTED_STYLES'	=> implode(',', $theme_json['support']),
-			'INSTALLED_THEME_PREVIEW'	=> $ext_path . 'themes/' . $config['postlove_installed_theme'] . '/' . $theme_json['preview'],
 		));
-
-		// Test folder writable, if not - BREAK!
-		if (is_writable($ext_path . 'styles'))
-		{
-			// Let's populate new themes selector
-			$themes = array_diff(scandir($ext_path . 'themes/'), array('..', '.', $config['postlove_installed_theme']));
-			foreach ($themes as $var)
-			{
-				if (file_exists($ext_path . 'themes/' . $var . '/' . $var . '.json'))
-				{
-					$string = file_get_contents($ext_path . 'themes/' . $var . '/' . $var . '.json');
-					$theme_json = json_decode($string, true);
-					$template->assign_block_vars('themeselector', array(
-						'THEME_STRING'	=> $var,
-						'THEME_NAME'	=> $theme_json['name'],
-						'THEME_AUTHOR'	=> $theme_json['author'],
-						'THEME_DESCRIPTION' => $theme_json['description'],
-						'THEME_SUPPORTED'	=> implode(',', $theme_json['support']),
-						'THEME_PREVIEW'	=> (isset($theme_json['preview']) ? '<img src="' . $ext_path . 'themes/' . $var . '/' . $theme_json['preview'] . '" style="max-width: 100%"/>' : false),
-					));
-				}
-			}
-		}
-		else
-		{
-			$template->assign_vars(array(
-				'WRITE_ERROR'	=> true,
-			));
-		}
-	}
-
-	// Easy way to clean styles and to recreate it.
-	function recursiveRemoveDirectory($directory)
-	{
-		foreach (glob("{$directory}/*") as $file)
-		{
-			if (is_dir($file))
-			{
-				$this->recursiveRemoveDirectory($file);
-			}
-			else
-			{
-				unlink($file);
-			}
-		}
-		rmdir($directory);
-	}
-
-	// Recurse copy
-	function recurse_copy($src, $dst)
-	{
-		$dir = opendir($src);
-		@mkdir($dst);
-		while (false !== ($file = readdir($dir)))
-		{
-			if (( $file != '.' ) && ( $file != '..' ))
-			{
-				if ( is_dir($src . '/' . $file) )
-				{
-					$this->recurse_copy($src . '/' . $file,$dst . '/' . $file);
-				}
-				else
-				{
-					copy($src . '/' . $file,$dst . '/' . $file);
-				}
-			}
-		}
-		closedir($dir);
 	}
 }

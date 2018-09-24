@@ -41,13 +41,6 @@ class notifyhelper
 		$this->php_ext = $php_ext;
 	}
 
-	public function test($i)
-	{
-		echo '</pre>';
-		print_r($i);
-		echo '</pre>';
-	}
-
 	/**
 	* Main notification function
 	* @param type			Type of notification (add/confirm)
@@ -75,7 +68,8 @@ class notifyhelper
 					$phpbb_notifications->add_notifications('notification.type.postlove', $notification_data);
 				break;
 				case 'remove':
-					$phpbb_notifications->delete_notifications('notification.type.postlove', $notification_data);
+					$notifications = $phpbb_notifications->get_item_type_class('notification.type.postlove');
+					$phpbb_notifications->delete_notifications('notification.type.postlove', $notifications->get_item_id($notification_data));
 				break;
 			}
 		}

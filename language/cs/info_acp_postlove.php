@@ -1,7 +1,7 @@
 <?php
 /**
 *
-* newspage [Czech]
+* Post Love [Czech]
 *
 * @package language
 * @version $Id$
@@ -43,5 +43,9 @@ $lang = array_merge($lang, array(
 	'POSTLOVE_NO_WRITE_ACTION'	=> 'Nemáte oprávnění k zápisu.<br>Povolte možnost zápisu do složky <i> $phpbb_root_path/ext/anavaro/postlove/styles</i>.',
 
 	'POSTLOVE_AUTHOR_LIKE'	=> 'Autor může označovat své vlastní příspěvky',
-	'POSTLOVE_AUTHOR_LIKE_EXPLAIN'	=> 'Je-li povoleno, autor může označit své vlastní příspěvky tlačítkem Líbí se',
+	'POSTLOVE_AUTHOR_LIKE_EXPLAIN'	=> 'Je-li povoleno, autor může označit své vlastní příspěvky tlačítkem Líbí se.',
+
+	'POSTLOVE_CLEAN_LOVES'	=> 'Pročistit hodnocení',
+	'POSTLOVE_CLEAN_LOVES_EXPLAIN'	=> 'Pokud bylo rozšíření Post Love nainstalováno ještě před uvedením funkce automatického čištění příspěvků a uživatelského Post Love hodnocení, proveďte stiskem tlačítka „Vyčistit“ pročištění nepotřebných Post Love hodnocení.',
+	'CLEN'	=> 'Vyčistit',
 ));

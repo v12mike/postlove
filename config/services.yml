@@ -1,18 +1,16 @@
+parameters:
+    tables.anavaro.postlove: %core.table_prefix%posts_likes
 services:
     anavaro.postlove.listener:
         class: anavaro\postlove\event\main_listener
         arguments:
             - @auth
-            - @cache
             - @config
             - @dbal.conn
-            - @request
             - @template
             - @user
             - @controller.helper
-            - %core.root_path%
-            - %core.php_ext%
-            - %core.table_prefix%
+            - %tables.anavaro.postlove%
         tags:
             - { name: event.listener }
     anavaro.postlove.ajaxify:
@@ -22,11 +20,12 @@ services:
             - @dbal.conn
             - @user
             - @anavaro.postlove.notifyhelper
-            - %core.table_prefix%
+            - %tables.anavaro.postlove%
     anavaro.postlove.lovelist:
         class: anavaro\postlove\controller\lovelist
         arguments:
             - @user
+            - @language
             - @controller.helper
             - @dbal.conn
             - @auth
@@ -34,7 +33,7 @@ services:
             - @template
             - @pagination
             - @request
-            - %core.table_prefix%
+            - %tables.anavaro.postlove%
             - %core.root_path%
     anavaro.postlove.notifyhelper:
         class: anavaro\postlove\controller\notifyhelper
@@ -47,22 +46,13 @@ services:
             - @service_container
             - %core.root_path%
             - %core.php_ext%
-            - %core.table_prefix%
+            - %tables.anavaro.postlove%
     notification.type.postlove:
         class: anavaro\postlove\notification\postlove
-        scope: prototype # scope MUST be prototype for this to work!
-        arguments:
-            - @user_loader
-            - @dbal.conn
-            - @cache.driver
-            - @user
-            - @auth
-            - @config
-            - @controller.helper
-            - %core.root_path%
-            - %core.php_ext%
-            - %tables.notification_types%
-            - %tables.notifications%
-            - %tables.user_notifications%
+        shared: false
+        parent: notification.type.base
+        calls:
+            - [set_user_loader, ['@user_loader']]
+            - [set_config, ['@config']]
         tags:
             - { name: notification.type }
